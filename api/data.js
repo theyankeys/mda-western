@@ -54,8 +54,9 @@ const day = (r) => (r._submission_time || '').slice(0, 10) || null;
 
 async function buildData(token) {
   const out = { submissions: [], multi: [], cdd: [], rapid_hh: [], sct_sites: [], monitor: [] };
+  let curDate = null;
   const addMulti = (form, topic, district, options) => {
-    for (const o of options) out.multi.push({ form, topic, district, option: o });
+    for (const o of options) out.multi.push({ form, topic, district, option: o, date: curDate });
   };
 
   const fetched = await Promise.all(Object.entries(FORMS).map(async ([key, f]) => [key, f, await fetchForm(f.uid, token)]));
@@ -68,12 +69,13 @@ async function buildData(token) {
       const [lat, lon] = gps(g);
       const sub = r._5_Name_of_Sub_District || r.Name_of_Sub_district || r.Name_of_Sub_District || null;
       const com = r._6_Name_of_Community || r.Name_of_Community || null;
+      curDate = day(r);
       const who = (r._1_Name_of_Interviewer || r.Name_of_interviewer || r.Name_of_Interviewer || r.Name_of_supervisor || '').trim() || null;
       out.submissions.push({ id: r._id, form: f.name, district, sub_district: sub, community: com, interviewer: who, date: day(r), lat, lon });
 
       if (key === 'cdd') {
         out.cdd.push({
-          id: r._id, district, community: com,
+          id: r._id, district, community: com, date: day(r),
           trained: lab('Was_Training_done_before_distr', r.Was_Training_done_before_distr),
           social_mobilization: lab('_11_Was_social_mobi_ine_was_distributed', r._11_Was_social_mobi_ine_was_distributed),
           expected_pay: r._10_How_much_will_yo_n_after_distribution || null,
@@ -84,7 +86,7 @@ async function buildData(token) {
         const p = 'group_oy3xc50/';
         (r.group_oy3xc50 || []).forEach((h, i) => {
           out.rapid_hh.push({
-            id: `${r._id}-${i + 1}`, district, community: com,
+            id: `${r._id}-${i + 1}`, submission_id: r._id, district, sub_district: sub, community: com, date: day(r),
             visited: lab('House_visited_by_volunteer', h[p + 'House_visited_by_volunteer']),
             persons: num(h[p + 'Number_of_Persons_living_the_household']),
             treated: num(h[p + 'Number_of_persons_who_were_treated']),
@@ -103,7 +105,7 @@ async function buildData(token) {
         if (!people.length) swallowed = Math.round(num(r.swallow) || 0);
         const decision = swallowed <= 10 ? 'Inadequate' : swallowed <= 15 ? 'Cannot conclude' : 'Good';
         out.sct_sites.push({
-          id: r._id, district, sub_district: sub, community: com,
+          id: r._id, district, sub_district: sub, community: com, date: day(r), interviewer: who,
           disease: lab('Disease_being_assessed', r.Disease_being_assessed),
           interviewed: people.length, offered, swallowed, decision, lat, lon,
         });
@@ -116,7 +118,7 @@ async function buildData(token) {
         const cm = subs.reduce((a, s) => a + (num(s['Sub_district_1/Mal']) || 0), 0);
         const cf = subs.reduce((a, s) => a + (num(s['Sub_district_1/Fe']) || 0), 0);
         out.monitor.push({
-          id: r._id, district, date: r.Date || day(r),
+          id: r._id, district, date: day(r), visit_date: r.Date || null,
           logistics_adequate: lab('Have_adequate_logist_tities_from_BIN_Card', r.Have_adequate_logist_tities_from_BIN_Card),
           ivm_in_stock: (num(r.old) || 0) + (num(r.Received) || 0),
           moxidectin_in_stock: (num(r._11_Old_Stock_of_Moxidectin_Tablets) || 0) + (num(r._12_Q_ty_of_Moxidectin_Received) || 0),
