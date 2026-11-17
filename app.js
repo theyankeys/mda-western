@@ -249,7 +249,7 @@
       const box = el('div', 'pop'); box.appendChild(el('b', null, p.community || 'Unnamed community'));
       [['Form', p.form], ['Supervisor', p.interviewer], ['District', p.district], ['Sub-district', p.sub_district], ['Sent', `${when(p.submitted_at)} · ${ago(p.submitted_at)}`], ['GPS accuracy', p.gps_accuracy_m != null ? `±${Math.round(p.gps_accuracy_m)} m` : null]]
         .forEach(([k, v]) => { if (!v) return; const d = el('div'); d.append(el('span', 'k', k + ': '), v); box.appendChild(d); });
-      m.bindPopup(box); m.bindTooltip(`${p.community || 'Unnamed community'} · ${SHORT[p.form]}`, { direction: 'top', offset: [0, -6] });
+      m.bindPopup(box); m.bindTooltip(el('span', null, `${p.community || 'Unnamed community'} · ${SHORT[p.form]}`), { direction: 'top', offset: [0, -6] });
       m.addTo(pointLayer);
     }
     if (fitPending && districtLayer) {
