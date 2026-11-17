@@ -28,7 +28,7 @@ Every push to the repository redeploys the site automatically.
 
 ## District boundaries (optional)
 
-Save a GeoJSON of the district boundaries as `districts.geojson` next to `index.html`. The map picks it up automatically
+`districts.geojson` holds the 14 Western Region district boundaries (Ghana COD-AB, 2021), simplified for the web. The map picks it up automatically
 and adds a "District boundaries" layer. The district name is read from a property called `district`,
 `name`, `shapeName` or `ADM2_EN`.
 

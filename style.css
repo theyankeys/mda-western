@@ -99,3 +99,7 @@ td.num, th.num { text-align: right; }
   .big { font-size: 26px; }
   .wrap { padding: 0 12px; }
 }
+
+.map-legend i.sq { border-radius: 2px; border: 1.5px solid; box-shadow: none; }
+.map-legend .hint { color: var(--text-3); font-size: 11px; }
+.dlabel span { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 600 11px var(--font); color: #12395f; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff; pointer-events: none; }
