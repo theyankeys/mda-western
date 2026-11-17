@@ -127,30 +127,118 @@
   }
 
   // ---------- map ----------
-  let map, layers = {}, boundaryLayer = null, fitted = false;
+  let map, layers = {}, boundaryLayer = null, labelLayer = null, DISTRICTS = null, fitted = false;
   function initMap() {
-    map = L.map('map', { scrollWheelZoom: false }).setView([5.55, -2.2], 8);
+    map = L.map('map', { scrollWheelZoom: false, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([5.55, -2.2], 8);
     map.on('click', () => map.scrollWheelZoom.enable());
     const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery © Esri' });
     const satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
     const satGroup = L.layerGroup([sat, satLabels]);
+    map.createPane('dlabels').style.zIndex = 450; // district names above boundaries
+    map.createPane('points').style.zIndex = 500;  // submission dots above names
     FORMS.slice(0, 3).forEach((f) => { layers[f] = L.layerGroup().addTo(map); });
     const overlays = Object.fromEntries(FORMS.slice(0, 3).map((f) => [`<span style="color:${COLORS[f]}">●</span> ${f}`, layers[f]]));
     const ctl = L.control.layers({ Streets: streets, Satellite: satGroup }, overlays, { collapsed: true }).addTo(map);
     const legend = L.control({ position: 'bottomleft' });
     legend.onAdd = () => { const d = L.DomUtil.create('div', 'map-legend'); d.innerHTML = FORMS.slice(0, 3).map((f) => `<div><i style="background:${COLORS[f]}"></i>${f}</div>`).join(''); return d; };
     legend.addTo(map);
-    // Optional: district boundaries, if public/districts.geojson has been added to the project.
+    // District boundaries (districts.geojson next to index.html).
     fetch('districts.geojson').then((r) => (r.ok ? r.json() : null)).then((gj) => {
       if (!gj) return;
+      DISTRICTS = gj;
       boundaryLayer = L.geoJSON(gj, {
-        style: { color: '#12395f', weight: 1.5, fillOpacity: 0.04, dashArray: '4 3' },
-        onEachFeature: (f, l) => { const n = f.properties && (f.properties.district || f.properties.DISTRICT || f.properties.name || f.properties.NAME || f.properties.shapeName || f.properties.ADM2_EN); if (n) l.bindTooltip(String(n), { sticky: true }); },
+        style: districtStyle,
+        onEachFeature: (f, l) => {
+          const n = f.properties.district;
+          l.bindTooltip(() => districtTip(n), { sticky: true });
+          l.on('click', () => { districtSel.value = districtSel.value === n ? '' : n; districtSel.dataset.changed = '1'; render(); });
+          l.on('mouseover', () => l.setStyle({ weight: 3 }));
+          l.on('mouseout', () => boundaryLayer.resetStyle(l));
+        },
       }).addTo(map);
+      labelLayer = L.layerGroup();
+      const labels = gj.features.map((f) => {
+        const span = document.createElement('span'); span.textContent = f.properties.district;
+        const at = f.properties.label_lat != null ? L.latLng(f.properties.label_lat, f.properties.label_lon) : labelPoint(f);
+        return { area: f.properties.area_sqkm || 1000, m: L.marker(at, { icon: L.divIcon({ className: 'dlabel', html: span.outerHTML, iconSize: [0, 0] }), pane: 'dlabels', interactive: false, keyboard: false }) };
+      });
       ctl.addOverlay(boundaryLayer, 'District boundaries');
+      ctl.addOverlay(labelLayer, 'District names');
       boundaryLayer.bringToBack();
+      const syncLabels = () => {
+        const z = map.getZoom();
+        const minArea = z >= 10.5 ? 0 : z >= 9.5 ? 150 : z >= 8.5 ? 400 : Infinity; // small districts get names once zoomed in
+        labels.forEach(({ area, m }) => { if (area >= minArea) labelLayer.addLayer(m); else labelLayer.removeLayer(m); });
+        if (!map.hasLayer(labelLayer) && !labelLayer._userOff) labelLayer.addTo(map);
+      };
+      map.on('overlayremove', (e) => { if (e.layer === labelLayer) labelLayer._userOff = true; });
+      map.on('overlayadd', (e) => { if (e.layer === labelLayer) labelLayer._userOff = false; });
+      map.on('zoomend', syncLabels); syncLabels();
+      const lg = document.querySelector('.map-legend');
+      if (lg) lg.insertAdjacentHTML('beforeend', '<div><i class="sq" style="background:#c9dcf3;border-color:#12395f"></i>District with submissions</div><div><i class="sq" style="background:#dedcd6;border-color:#12395f"></i>No submissions yet</div><div class="hint">Click a district to filter</div>');
+      fitted = false;
+      fillDistricts();
+      if (DATA) render();
     }).catch(() => {});
+  }
+
+  function fillDistricts() {
+    const cur = districtSel.value;
+    const ds = [...new Set([...(DATA ? DATA.submissions.map((r) => r.district) : []), ...(DISTRICTS ? DISTRICTS.features.map((f) => f.properties.district) : [])].filter(Boolean))].sort();
+    districtSel.replaceChildren(new Option('All districts', ''), ...ds.map((d) => new Option(d, d)));
+    districtSel.value = ds.includes(cur) ? cur : '';
+  }
+
+  // ---------- district helpers ----------
+  function ringContains(ring, x, y) {
+    let c = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [x1, y1] = ring[i], [x2, y2] = ring[j];
+      if ((y1 > y) !== (y2 > y) && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) c = !c;
+    }
+    return c;
+  }
+  function districtAt(lat, lon) {
+    if (!DISTRICTS) return null;
+    for (const f of DISTRICTS.features) {
+      const g = f.geometry, polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
+      for (const p of polys) if (ringContains(p[0], lon, lat) && !p.slice(1).some((h) => ringContains(h, lon, lat))) return f.properties.district;
+    }
+    return 'outside the Western Region';
+  }
+  function labelPoint(f) {
+    // centre of the largest polygon's bounding box, nudged inside if needed
+    const g = f.geometry, polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
+    const big = polys.reduce((a, p) => (p[0].length > a[0].length ? p : a));
+    const b = L.latLngBounds(big[0].map(([x, y]) => [y, x]));
+    const c = b.getCenter();
+    if (ringContains(big[0], c.lng, c.lat)) return c;
+    const pts = big[0]; let best = pts[0];
+    let bx = 0, by = 0; pts.forEach(([x, y]) => { bx += x; by += y; }); best = [bx / pts.length, by / pts.length];
+    return L.latLng(best[1], best[0]);
+  }
+  function districtStyle(f) {
+    const n = f.properties.district;
+    const sel = districtSel.value;
+    const has = DATA && DATA.submissions.some((r) => r.district === n);
+    if (sel === n) return { color: '#12395f', weight: 3, fillColor: '#2a78d6', fillOpacity: 0.22 };
+    return { color: '#12395f', weight: 1.4, opacity: 0.8, fillColor: has ? '#2a78d6' : '#7a7974', fillOpacity: sel ? 0.05 : has ? 0.14 : 0.12 };
+  }
+  function districtTip(n) {
+    const box = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = n; box.appendChild(b);
+    if (DATA) {
+      const s = DATA.submissions.filter((r) => r.district === n);
+      const h = DATA.rapid_hh.filter((r) => r.district === n);
+      const cov = pct(d3.sum(h, (r) => +r.treated || 0), d3.sum(h, (r) => +r.persons || 0));
+      const lines = [`Submissions: ${s.length}`];
+      FORMS.forEach((f) => { const k = s.filter((r) => r.form === f).length; if (k) lines.push(`· ${f}: ${k}`); });
+      if (cov != null) lines.push(`Treatment coverage: ${pctTxt(cov)}`);
+      lines.push(DATA.monitor.some((r) => r.district === n) ? 'District monitoring form: received' : 'District monitoring form: not yet');
+      lines.forEach((t) => { const d = document.createElement('div'); d.textContent = t; box.appendChild(d); });
+    }
+    return box;
   }
 
   function drawMap() {
@@ -159,21 +247,29 @@
     Object.values(layers).forEach((l) => l.clearLayers());
     for (const p of pts) {
       if (!layers[p.form]) continue;
-      const m = L.circleMarker([p.lat, p.lon], { radius: 8, color: '#fff', weight: 2, fillColor: COLORS[p.form], fillOpacity: 0.95 });
+      const m = L.circleMarker([p.lat, p.lon], { pane: 'points', radius: 8, color: '#fff', weight: 2, fillColor: COLORS[p.form], fillOpacity: 0.95 });
       const box = document.createElement('div');
       const b = document.createElement('b'); b.textContent = p.community || 'Unnamed community'; box.appendChild(b);
       const rows = [['District', p.district], ['Sub-district', p.sub_district], ['Form', p.form], ['Date', p.date], ['Collector', p.interviewer]];
       const d = dec.get(String(p.id)); if (d) rows.push(['SCT decision', d]);
+      const inD = districtAt(p.lat, p.lon);
+      if (inD && inD !== p.district) rows.push(['⚠ Check GPS', `point lies in ${inD}`]);
       rows.push(['GPS', p.lat.toFixed(5) + ', ' + p.lon.toFixed(5)]);
       for (const [k, v] of rows) { if (!v) continue; const r = document.createElement('div'); r.className = 'pop-row'; r.textContent = `${k}: ${v}`; box.appendChild(r); }
       m.bindPopup(box);
       m.bindTooltip(p.community || p.form, { direction: 'top', offset: [0, -6] });
       m.addTo(layers[p.form]);
     }
-    if (pts.length && (!fitted || districtSel.dataset.changed)) {
-      const bounds = L.latLngBounds(pts.map((p) => [p.lat, p.lon]));
-      map.fitBounds(bounds.pad(0.4), { maxZoom: 12 });
-      fitted = true; delete districtSel.dataset.changed;
+    if (boundaryLayer) boundaryLayer.setStyle(districtStyle);
+    if (!fitted || districtSel.dataset.changed) {
+      let bounds = null;
+      const sel = districtSel.value;
+      if (boundaryLayer) {
+        boundaryLayer.eachLayer((l) => { if (!sel || l.feature.properties.district === sel) bounds = bounds ? bounds.extend(l.getBounds()) : L.latLngBounds(l.getBounds().getSouthWest(), l.getBounds().getNorthEast()); });
+      }
+      if (!bounds && pts.length) bounds = L.latLngBounds(pts.map((p) => [p.lat, p.lon])).pad(0.4);
+      if (bounds) { map.fitBounds(bounds, { maxZoom: 12, padding: [6, 6] }); fitted = true; }
+      delete districtSel.dataset.changed;
     }
   }
 
@@ -246,10 +342,7 @@
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Could not load data');
       DATA = body;
-      const cur = districtSel.value;
-      const ds = [...new Set(DATA.submissions.map((r) => r.district).filter(Boolean))].sort();
-      districtSel.replaceChildren(new Option('All districts', ''), ...ds.map((d) => new Option(d, d)));
-      districtSel.value = ds.includes(cur) ? cur : '';
+      fillDistricts();
       err.hidden = true;
       dot.className = 'dot live';
       upd.textContent = 'Updated ' + d3.timeFormat('%d %b %Y, %H:%M')(new Date(DATA.generated_at));
