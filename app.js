@@ -181,7 +181,7 @@
       aria: 'Submissions per district, stacked by form', rowH: 38, empty: 'No districts loaded.',
       right: (r) => fmt(r.total), rightMuted: (r) => `· ${ago(r.last)}`, zeroText: 'No submissions yet',
       selected: (r) => r.district === fD.value,
-      tip: (r) => [r.total ? plural(r.total, 'submission') : 'No submissions yet', ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), r.collectors ? plural(r.collectors, 'collector') : null, r.last ? `Last: ${when(r.last)}` : null, 'Tap to focus on this district'],
+      tip: (r) => [r.total ? plural(r.total, 'submission') : 'No submissions yet', ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), r.collectors ? plural(r.collectors, 'supervisor') : null, r.last ? `Last: ${when(r.last)}` : null, 'Tap to focus on this district'],
       click: (r) => setDistrict(fD.value === r.district ? '' : r.district),
     });
   }
@@ -189,7 +189,7 @@
   function drawPeople() {
     const rows = PEOPLE.map((p) => ({ ...p, label: p.name, total: p.n }));
     stackedBars($('#people-chart'), rows, {
-      aria: 'Forms sent per data collector', rowH: 30, empty: 'No submissions for this selection yet.',
+      aria: 'Forms sent per supervisor', rowH: 30, empty: 'No submissions for this selection yet.',
       right: (r) => fmt(r.n),
       rightMuted: (r) => { const d = (Date.now() - Date.parse(r.last)) / 864e5; return d >= SILENT_DAYS ? `· silent ${Math.floor(d)}d` : `· ${ago(r.last)}`; },
       tip: (r) => [r.districts.join(', ') || 'No district', plural(r.n, 'form'), ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), `Last sent: ${when(r.last)}`],
@@ -247,9 +247,9 @@
       if (p.lat == null || p.lon == null) continue;
       const m = L.circleMarker([p.lat, p.lon], { pane: 'points', radius: 7, color: '#fff', weight: 2, fillColor: COLOR[p.form], fillOpacity: 0.95 });
       const box = el('div', 'pop'); box.appendChild(el('b', null, p.community || 'Unnamed community'));
-      [['Form', p.form], ['By', p.interviewer], ['District', p.district], ['Sub-district', p.sub_district], ['Sent', `${when(p.submitted_at)} · ${ago(p.submitted_at)}`], ['GPS accuracy', p.gps_accuracy_m != null ? `±${Math.round(p.gps_accuracy_m)} m` : null]]
+      [['Form', p.form], ['Supervisor', p.interviewer], ['District', p.district], ['Sub-district', p.sub_district], ['Sent', `${when(p.submitted_at)} · ${ago(p.submitted_at)}`], ['GPS accuracy', p.gps_accuracy_m != null ? `±${Math.round(p.gps_accuracy_m)} m` : null]]
         .forEach(([k, v]) => { if (!v) return; const d = el('div'); d.append(el('span', 'k', k + ': '), v); box.appendChild(d); });
-      m.bindPopup(box); m.bindTooltip(`${p.interviewer || 'Unknown'} · ${SHORT[p.form]}`, { direction: 'top', offset: [0, -6] });
+      m.bindPopup(box); m.bindTooltip(`${p.community || 'Unnamed community'} · ${SHORT[p.form]}`, { direction: 'top', offset: [0, -6] });
       m.addTo(pointLayer);
     }
     if (fitPending && districtLayer) {
@@ -377,7 +377,7 @@
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
   const CSVS = {
-    districts: () => csv(BYD, [['district', 'District'], ...FORMS.map((f) => [f, f]), ['total', 'Total'], ['collectors', 'Collectors'], [(r) => r.last || '', 'Last submission (GMT)']]),
+    districts: () => csv(BYD, [['district', 'District'], ...FORMS.map((f) => [f, f]), ['total', 'Total'], ['collectors', 'Supervisors'], [(r) => r.last || '', 'Last submission (GMT)']]),
     collectors: () => csv(PEOPLE, [['name', 'Name'], [(p) => p.districts.join('; '), 'District'], ...FORMS.map((f) => [f, f]), ['n', 'Total sent'], ['last', 'Last sent (GMT)']]),
   };
 
@@ -428,7 +428,7 @@
   fF.addEventListener('change', render);
   fP.addEventListener('change', render);
   $('#clear-filters').addEventListener('click', () => { fD.value = ''; fF.value = ''; fP.value = 'all'; fitPending = true; render(); });
-  $$('[data-csv]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (RAW) download(`mda-${b.dataset.csv}-${todayStr()}.csv`, CSVS[b.dataset.csv]()); }));
+  $$('[data-csv]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (RAW) download(`mda-${b.dataset.csv === 'collectors' ? 'supervisors' : b.dataset.csv}-${todayStr()}.csv`, CSVS[b.dataset.csv]()); }));
   let rt, lastW = innerWidth;
   addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { render(); map.invalidateSize(); }, 200); });
   load();
