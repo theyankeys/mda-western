@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MDA Round Two – Western Region Monitoring</title>
-  <meta name="description" content="Live monitoring of the 2026 MDA Round Two in the Western Region of Ghana, from KoboToolbox data.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173a5e">
+  <title>MDA Round Two – Submission Monitoring · Western Region</title>
+  <meta name="description" content="Live tracking of KoboToolbox submissions for the 2026 MDA Round Two in the Western Region of Ghana: who is submitting, which forms, from where and when.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23173a5e'/><path d='M8 17l5 5 11-12' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="style.css">
@@ -13,168 +14,142 @@
   <header class="top">
     <div class="wrap top-inner">
       <div class="brand">
-        <p class="eyebrow">NTDP · Western Region · Round Two 2026</p>
-        <h1>MDA monitoring dashboard</h1>
+        <p class="eyebrow">NTDP · Western Region · MDA Round Two 2026</p>
+        <h1>Submission monitoring</h1>
       </div>
       <div class="filters" role="group" aria-label="Filters">
         <label class="field"><span>District</span>
-          <select id="f-district"><option value="">All 14 districts</option></select>
+          <select id="f-district"><option value="">All districts</option></select>
+        </label>
+        <label class="field"><span>Form</span>
+          <select id="f-form"><option value="">All forms</option></select>
         </label>
         <label class="field"><span>Period</span>
           <select id="f-period">
             <option value="all">Whole campaign</option>
             <option value="7">Last 7 days</option>
+            <option value="2">Today &amp; yesterday</option>
             <option value="1">Today</option>
           </select>
         </label>
-        <button type="button" class="btn ghost" id="print-btn" title="Print or save as PDF">Print / PDF</button>
       </div>
     </div>
-    <div class="wrap updated"><span class="dot" id="live-dot"></span><span id="updated">Loading the latest submissions…</span></div>
+    <div class="wrap updated"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span><button type="button" class="linkbtn" id="clear-filters" hidden>Clear filters</button></div>
   </header>
 
   <main class="wrap">
     <div class="error" id="error" hidden></div>
 
-    <!-- Summary -->
-    <section class="summary" id="summary" aria-label="Summary">
-      <article class="stat">
-        <h2>Treatment coverage</h2>
-        <p class="num"><span data-s="coverage">—</span></p>
-        <p class="ctx" data-s="coverage_ctx">—</p>
+    <!-- Headline -->
+    <section class="headline" aria-label="Summary">
+      <article class="stat" id="st-total">
+        <h2>Submissions</h2>
+        <p class="num" data-s="total">—</p>
+        <div class="split" id="form-split"></div>
       </article>
-      <article class="stat">
-        <h2>Rapid-assessment households</h2>
-        <p class="num"><span data-s="hh">—</span><small> / <span data-s="hh_target">—</span></small></p>
-        <div class="bar" aria-hidden="true"><i data-s-bar="hh"></i></div>
-        <p class="ctx" data-s="hh_ctx">—</p>
+      <article class="stat" id="st-districts">
+        <h2>Districts submitting</h2>
+        <p class="num"><span data-s="districts">—</span><small> of <span data-s="districts_all">14</span></small></p>
+        <div class="bar" aria-hidden="true"><i data-s-bar="districts"></i></div>
+        <p class="ctx" data-s="districts_ctx">—</p>
       </article>
-      <article class="stat">
-        <h2>District monitoring forms</h2>
-        <p class="num"><span data-s="mon">—</span><small> / <span data-s="mon_target">—</span></small></p>
-        <div class="bar" aria-hidden="true"><i data-s-bar="mon"></i></div>
-        <p class="ctx">One per district</p>
+      <article class="stat" id="st-collectors">
+        <h2>Data collectors</h2>
+        <p class="num" data-s="collectors">—</p>
+        <p class="ctx" data-s="collectors_ctx">—</p>
       </article>
-      <article class="stat">
-        <h2>WHO SCT sites</h2>
-        <p class="num"><span data-s="sct">—</span><small> / <span data-s="sct_target">—</span></small></p>
-        <div class="bar" aria-hidden="true"><i data-s-bar="sct"></i></div>
-        <p class="ctx" data-s="sct_ctx">—</p>
+      <article class="stat" id="st-today">
+        <h2>Submitted today</h2>
+        <p class="num" data-s="today">—</p>
+        <p class="ctx" data-s="today_ctx">—</p>
       </article>
     </section>
 
-    <!-- District scorecard -->
-    <section class="panel" id="scorecard">
+    <!-- District × form -->
+    <section class="panel" id="by-district">
       <div class="panel-head">
         <div>
-          <h2>District scorecard</h2>
-          <p class="sub">Click a district to focus the whole page on it. Click a column heading to sort.</p>
+          <h2>Submissions by district and form</h2>
+          <p class="sub">Tap a district to focus the page on it. A dash means nothing received yet.</p>
         </div>
-        <button type="button" class="btn ghost small" data-csv="scorecard">Download CSV</button>
+        <button type="button" class="btn small" data-csv="districts">Download CSV</button>
       </div>
       <div class="tablewrap">
-        <table class="score" id="score-table">
+        <table class="matrix" id="matrix">
           <thead><tr>
             <th data-sort="district">District</th>
-            <th data-sort="mon" class="c">Monitoring form</th>
-            <th data-sort="hh_pct">Rapid households</th>
-            <th data-sort="coverage" class="r">Coverage</th>
-            <th data-sort="awareness" class="r">Awareness</th>
-            <th data-sort="sct">SCT result</th>
-            <th data-sort="cdd" class="r">CDDs assessed</th>
-            <th data-sort="last">Last activity</th>
+            <th data-sort="CDD assessment" class="r"><i class="sw" data-form="CDD assessment"></i>CDD</th>
+            <th data-sort="WHO SCT" class="r"><i class="sw" data-form="WHO SCT"></i>WHO SCT</th>
+            <th data-sort="Rapid assessment" class="r"><i class="sw" data-form="Rapid assessment"></i>Rapid</th>
+            <th data-sort="District monitoring" class="r"><i class="sw" data-form="District monitoring"></i>District</th>
+            <th data-sort="total" class="r">Total</th>
+            <th data-sort="collectors" class="r">Collectors</th>
+            <th data-sort="last">Last submission</th>
           </tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="foot-note">Coverage = people treated ÷ people living in sampled households. Shown as <span class="flag">low n</span> when based on fewer than 30 people. Target 65%.</p>
     </section>
 
-    <!-- Map + progress -->
+    <!-- Map + daily -->
     <section class="two">
       <article class="panel" id="map-panel">
         <div class="panel-head">
-          <div><h2>Map</h2><p class="sub">Districts shaded by the measure you choose. Dots are submission GPS points.</p></div>
-          <div class="seg" role="tablist" id="map-metric">
-            <button type="button" data-m="coverage" aria-selected="true">Coverage</button>
-            <button type="button" data-m="hh">Households</button>
-            <button type="button" data-m="mon">Monitoring</button>
-            <button type="button" data-m="sct">SCT</button>
-          </div>
+          <div><h2>Where forms were submitted from</h2><p class="sub">Each dot is a submission's GPS point. Tap one for who, which form and when.</p></div>
         </div>
-        <div id="map" role="region" aria-label="Map of districts and submissions"></div>
+        <div id="map" role="region" aria-label="Map of submission locations"></div>
         <div class="legend" id="map-legend"></div>
       </article>
 
-      <article class="panel" id="progress">
+      <article class="panel" id="daily-panel">
         <div class="panel-head">
-          <div><h2>Progress toward targets</h2><p class="sub">Cumulative share of each target reached, by submission date.</p></div>
+          <div><h2>Submissions per day</h2><p class="sub">By the day each form was sent to the server.</p></div>
         </div>
-        <div class="legend" id="progress-legend"></div>
-        <div class="chart" id="progress-chart"></div>
+        <div class="legend" id="daily-legend"></div>
+        <div class="chart" id="daily"></div>
       </article>
     </section>
 
-    <!-- Reasons -->
-    <section class="panel" id="reasons">
-      <div class="panel-head">
-        <div><h2>Why people were missed</h2><p class="sub">How often each reason was given. One answer can list several reasons.</p></div>
-      </div>
-      <div class="three">
-        <div><h3>Not treated <span class="n" id="n-r1"></span></h3><div class="chart sm" id="r1"></div><p class="src">Rapid assessment</p></div>
-        <div><h3>Refused <span class="n" id="n-r2"></span></h3><div class="chart sm" id="r2"></div><p class="src">Rapid assessment</p></div>
-        <div><h3>Did not swallow <span class="n" id="n-r3"></span></h3><div class="chart sm" id="r3"></div><p class="src">WHO SCT</p></div>
-      </div>
-    </section>
-
-    <!-- Supervision -->
+    <!-- Collectors + feed -->
     <section class="two">
-      <article class="panel">
-        <div class="panel-head"><div><h2>District supervision</h2><p class="sub">From the district-level monitoring form.</p></div>
-          <button type="button" class="btn ghost small" data-csv="monitor">Download CSV</button></div>
-        <div class="tablewrap"><table id="mon-table"><thead><tr>
-          <th>District</th><th class="c">Logistics adequate</th><th class="r">IVM in stock</th><th class="r">Health workers trained</th><th class="r">CDDs trained</th><th class="c">Data plan</th><th class="c">DHIMS 2</th>
-        </tr></thead><tbody></tbody></table></div>
-        <div class="answers">
-          <div><h3>Challenges reported</h3><div class="chart xs" id="a-chal"></div></div>
-          <div><h3>Recommendations</h3><div class="chart xs" id="a-rec"></div></div>
+      <article class="panel" id="collectors">
+        <div class="panel-head">
+          <div><h2>Who is submitting</h2><p class="sub">Every data collector, the forms they've sent, and when they were last active.</p></div>
+          <button type="button" class="btn small" data-csv="collectors">Download CSV</button>
+        </div>
+        <div class="tablewrap">
+          <table class="people" id="people">
+            <thead><tr><th>Name · district</th><th>Forms</th><th class="r">Sent</th><th>Last sent</th></tr></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </article>
-      <article class="panel">
-        <div class="panel-head"><div><h2>CDD assessment</h2><p class="sub">Community drug distributors interviewed.</p></div>
-          <button type="button" class="btn ghost small" data-csv="cdd">Download CSV</button></div>
-        <div class="mini">
-          <div><span class="lbl">Assessed</span><span class="v" data-s="cdd_n">—</span></div>
-          <div><span class="lbl">Trained before distribution</span><span class="v" data-s="cdd_trained">—</span></div>
-          <div><span class="lbl">Social mobilization done</span><span class="v" data-s="cdd_socmob">—</span></div>
+
+      <article class="panel" id="feed-panel">
+        <div class="panel-head">
+          <div><h2>Latest submissions</h2><p class="sub">The 20 most recent, newest first.</p></div>
         </div>
-        <div class="answers">
-          <div><h3>Mobilization channels</h3><div class="chart xs" id="a-chan"></div></div>
-          <div><h3>Sources of information (households)</h3><div class="chart xs" id="a-src"></div></div>
-        </div>
+        <ol class="feed" id="feed"></ol>
       </article>
     </section>
 
-    <!-- Data quality -->
-    <section class="panel" id="quality">
+    <!-- Checks -->
+    <section class="panel" id="checks">
       <div class="panel-head">
-        <div><h2>Data quality</h2><p class="sub">Submissions worth a second look, and activity by data collector.</p></div>
-        <button type="button" class="btn ghost small" data-csv="issues">Download CSV</button>
+        <div><h2>Submission checks</h2><p class="sub">Submissions worth a second look with the collector. Tap a check to see the list.</p></div>
+        <button type="button" class="btn small" data-csv="checks">Download CSV</button>
       </div>
-      <div class="qgrid">
-        <div>
-          <div class="qchips" id="q-chips"></div>
-          <div class="tablewrap"><table id="issue-table"><thead><tr><th>Issue</th><th>Form</th><th>District</th><th>Community</th><th>Collector</th><th>Date</th></tr></thead><tbody></tbody></table></div>
-        </div>
-        <div>
-          <h3>Data collectors</h3>
-          <div class="tablewrap"><table id="enum-table"><thead><tr><th>Name</th><th class="r">Submissions</th><th>Last</th></tr></thead><tbody></tbody></table></div>
-        </div>
+      <div class="checkgrid" id="check-cards"></div>
+      <div class="tablewrap">
+        <table class="issues" id="issues">
+          <thead><tr><th>Check</th><th>Form</th><th>District</th><th>Community</th><th>Collector</th><th>When</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </section>
 
     <footer class="foot">
-      <p>Data: KoboToolbox (kf.kobotoolbox.org), refreshed every 5 minutes. Targets per district: 1 monitoring form, 24 rapid-assessment households (2 sub-districts × 2 communities × 6 households), 1 WHO SCT site of 20 households. SCT rule: ≤10 swallowed = inadequate, 11–15 = cannot conclude, ≥16 = good. Boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
+      <p>Data: KoboToolbox (kf.kobotoolbox.org), refreshed every 5 minutes; times in GMT. "Form open" is the time between opening a form on the phone and finishing it, so it includes any time the form was left open. District boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
     </footer>
   </main>
 

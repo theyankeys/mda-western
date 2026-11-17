@@ -71,7 +71,18 @@ async function buildData(token) {
       const com = r._6_Name_of_Community || r.Name_of_Community || null;
       curDate = day(r);
       const who = (r._1_Name_of_Interviewer || r.Name_of_interviewer || r.Name_of_Interviewer || r.Name_of_supervisor || '').trim() || null;
-      out.submissions.push({ id: r._id, form: f.name, district, sub_district: sub, community: com, interviewer: who, date: day(r), lat, lon });
+      const acc = num(String(g || '').trim().split(/\s+/)[3]);
+      const t0 = Date.parse(r.start), t1 = Date.parse(r.end), ts = Date.parse((r._submission_time || '') + 'Z');
+      out.submissions.push({
+        id: r._id, form: f.name, district, sub_district: sub, community: com, interviewer: who, date: day(r), lat, lon,
+        gps_accuracy_m: acc == null ? null : Math.round(acc * 10) / 10,
+        started_at: Number.isFinite(t0) ? new Date(t0).toISOString() : null,
+        finished_at: Number.isFinite(t1) ? new Date(t1).toISOString() : null,
+        submitted_at: Number.isFinite(ts) ? new Date(ts).toISOString() : null,
+        duration_min: Number.isFinite(t0) && Number.isFinite(t1) ? Math.round((t1 - t0) / 6000) / 10 : null,
+        upload_delay_h: Number.isFinite(t1) && Number.isFinite(ts) ? Math.round((ts - t1) / 360000) / 10 : null,
+        items: key === 'rapid' ? (r.group_oy3xc50 || []).length : key === 'sct' ? (r.Interviewing_of_individuals || []).length : null,
+      });
 
       if (key === 'cdd') {
         out.cdd.push({
