@@ -1,0 +1,11 @@
+{
+  "name": "mda-round-two-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Live MDA Round Two monitoring dashboard for the Western Region, fed by KoboToolbox.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "node dev-server.js"
+  }
+}
