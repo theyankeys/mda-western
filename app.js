@@ -1,14 +1,12 @@
 /* MDA Round Two — submission monitoring dashboard.
    Loads /api/data (live KoboToolbox submissions) and districts.geojson (the 10 districts in this
-   activity), then draws every card. Thresholds for the checks are set below. */
+   activity), then draws every card. */
 (() => {
   // ---------------- settings ----------------
   const FORMS = ['CDD assessment', 'WHO SCT', 'Rapid assessment', 'District monitoring'];
   const SHORT = { 'CDD assessment': 'CDD', 'WHO SCT': 'WHO SCT', 'Rapid assessment': 'Rapid', 'District monitoring': 'District' };
   const COLOR = { 'CDD assessment': '#2a78d6', 'WHO SCT': '#eb6834', 'Rapid assessment': '#1baf7a', 'District monitoring': '#e3a008' };
-  const HAS_GPS = { 'CDD assessment': true, 'WHO SCT': true, 'Rapid assessment': true, 'District monitoring': false };
-  const MIN_OPEN_MIN = { 'CDD assessment': 2, 'WHO SCT': 10, 'Rapid assessment': 5, 'District monitoring': 5 };
-  const GPS_ACCURACY_M = 50, LATE_UPLOAD_H = 24, SILENT_DAYS = 2, RAPID_HH = 6, SCT_PEOPLE = 20;
+  const SILENT_DAYS = 2;
   const REFRESH_MS = 5 * 60 * 1000;
 
   const fmt = d3.format(',');
@@ -19,7 +17,7 @@
   const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? '' : 's'}`;
 
   let RAW = null, DATA = null, DISTRICTS = null, NAMES = [];
-  let activeCheck = null, fitPending = true;
+  let fitPending = true;
   const fD = $('#f-district'), fF = $('#f-form'), fP = $('#f-period');
   fF.append(...FORMS.map((f) => new Option(f, f)));
 
@@ -38,7 +36,6 @@
     return d === 1 ? 'yesterday' : `${d} days ago`;
   }
   const when = (iso) => (iso ? d3.utcFormat('%d %b, %H:%M')(new Date(iso)) : '—');
-  const openTxt = (m) => (m == null ? '—' : m < 60 ? `${Math.round(m)} min` : m < 1440 ? `${(m / 60).toFixed(1)} h` : `${(m / 1440).toFixed(1)} days`);
 
   // ---------------- filtering ----------------
   const inPeriod = (rows) => { if (fP.value === 'all') return rows; const from = dayOffset(Number(fP.value) - 1); return rows.filter((r) => subDay(r) >= from); };
@@ -262,15 +259,6 @@
       fitPending = false;
     }
   }
-  function ringHas(ring, x, y) { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [x1, y1] = ring[i], [x2, y2] = ring[j]; if ((y1 > y) !== (y2 > y) && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) c = !c; } return c; }
-  function districtAt(lat, lon) {
-    if (!DISTRICTS) return null;
-    for (const f of DISTRICTS.features) {
-      const g = f.geometry, polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
-      for (const p of polys) if (ringHas(p[0], lon, lat) && !p.slice(1).some((h) => ringHas(h, lon, lat))) return f.properties.district;
-    }
-    return 'outside the 10 districts';
-  }
 
   // ---------------- days ----------------
   function dayRange(rows, minDays) {
@@ -356,56 +344,12 @@
   // ---------------- feed ----------------
   function drawFeed() {
     const ol = $('#feed'); ol.replaceChildren();
-    const S = [...scoped()].sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || '')).slice(0, 25);
+    const S = [...scoped()].sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || '')).slice(0, 30);
     if (!S.length) { ol.appendChild(el('li', 'empty', 'No submissions for this selection yet.')); return; }
     for (const r of S) {
       const li = el('li'); li.title = when(r.submitted_at);
       li.append(swatch(r.form), el('span', 'what', `${r.interviewer || 'Unknown'} · ${SHORT[r.form]}`), el('span', 'when', ago(r.submitted_at)), el('span', 'where', [r.community, r.district].filter(Boolean).join(', ') || 'No location given'));
       ol.appendChild(li);
-    }
-  }
-
-  // ---------------- checks ----------------
-  const CHECKS = [
-    { id: 'rapid_hh', label: `Rapid with fewer than ${RAPID_HH} households`, test: (r) => r.form === 'Rapid assessment' && r.items != null && r.items < RAPID_HH, detail: (r) => `${r.items} of ${RAPID_HH} households` },
-    { id: 'sct_20', label: `WHO SCT with fewer than ${SCT_PEOPLE} people`, test: (r) => r.form === 'WHO SCT' && r.items != null && r.items < SCT_PEOPLE, detail: (r) => `${r.items} of ${SCT_PEOPLE} people` },
-    { id: 'gps_out', label: 'GPS outside the selected district', test: (r) => r.lat != null && DISTRICTS && r.district && districtAt(r.lat, r.lon) !== r.district, detail: (r) => `GPS lies in ${districtAt(r.lat, r.lon)}` },
-    { id: 'gps_low', label: `GPS accuracy worse than ${GPS_ACCURACY_M} m`, test: (r) => r.gps_accuracy_m != null && r.gps_accuracy_m > GPS_ACCURACY_M, detail: (r) => `GPS accuracy ±${Math.round(r.gps_accuracy_m)} m` },
-    { id: 'gps_missing', label: 'No GPS recorded', test: (r) => HAS_GPS[r.form] && (r.lat == null || r.lon == null) },
-    { id: 'short', label: 'Completed very quickly', test: (r) => r.duration_min != null && r.duration_min < MIN_OPEN_MIN[r.form], detail: (r) => `Form open only ${openTxt(r.duration_min)}` },
-    { id: 'late', label: `Sent ${LATE_UPLOAD_H}+ h after finishing`, test: (r) => r.upload_delay_h != null && r.upload_delay_h >= LATE_UPLOAD_H, detail: (r) => `Sent ${Math.round(r.upload_delay_h)} h after finishing` },
-    { id: 'dup', label: 'Possible duplicate', test: null },
-    { id: 'outside', label: 'District not in this activity', test: null },
-  ];
-  let ISSUES = [];
-  function findIssues(S) {
-    const out = [];
-    for (const c of CHECKS) { if (!c.test) continue; for (const r of S) if (c.test(r)) out.push({ check: c.id, label: c.label, detail: c.detail ? c.detail(r) : c.label, r }); }
-    const k = (r) => [r.form, (r.community || '').toLowerCase().replace(/[^a-z0-9]/g, ''), (r.interviewer || '').toLowerCase().trim(), subDay(r)].join('|');
-    d3.groups(S.filter((r) => r.community && r.form !== 'District monitoring'), k).forEach(([, g]) => { if (g.length > 1) g.forEach((r) => out.push({ check: 'dup', label: 'Possible duplicate', detail: `Same collector, community & form ×${g.length} that day`, r })); });
-    d3.groups(S.filter((r) => r.form === 'District monitoring' && r.district), (r) => r.district).forEach(([, g]) => { if (g.length > 1) g.forEach((r) => out.push({ check: 'dup', label: 'Possible duplicate', detail: `${g.length} district forms for ${r.district}`, r })); });
-    if (!fD.value) inForm(inPeriod(RAW.submissions)).filter((r) => !r.district || !NAMES.includes(r.district)).forEach((r) => out.push({ check: 'outside', label: 'District not in this activity', detail: r.district ? `${r.district} is not one of the 10 districts` : 'No district selected', r }));
-    return out;
-  }
-  function drawChecks() {
-    const S = scoped();
-    ISSUES = findIssues(S);
-    const cards = $('#check-cards'); cards.replaceChildren();
-    for (const c of CHECKS) {
-      const n = ISSUES.filter((i) => i.check === c.id).length;
-      const b = el('button', 'check ' + (n ? 'has' : 'ok')); b.type = 'button';
-      b.setAttribute('aria-pressed', String(activeCheck === c.id));
-      b.append(el('b', null, n ? fmt(n) : '✓'), el('span', null, c.label));
-      b.addEventListener('click', () => { activeCheck = activeCheck === c.id ? null : c.id; drawChecks(); });
-      cards.appendChild(b);
-    }
-    const list = (activeCheck ? ISSUES.filter((i) => i.check === activeCheck) : ISSUES).sort((a, b) => (b.r.submitted_at || '').localeCompare(a.r.submitted_at || ''));
-    const ul = $('#issues'); ul.replaceChildren();
-    if (!list.length) { ul.appendChild(el('li', 'empty', activeCheck ? '✓ Nothing found for this check.' : `✓ No issues in ${plural(S.length, 'submission')}.`)); return; }
-    for (const i of list.slice(0, 200)) {
-      const li = el('li');
-      li.append(el('span', 'what', `⚠ ${i.detail}`), el('span', 'when', when(i.r.submitted_at)), el('span', 'who', `${SHORT[i.r.form]} · ${[i.r.community, i.r.district].filter(Boolean).join(', ') || '—'} · ${i.r.interviewer || 'Unknown'}`));
-      ul.appendChild(li);
     }
   }
 
@@ -435,7 +379,6 @@
   const CSVS = {
     districts: () => csv(BYD, [['district', 'District'], ...FORMS.map((f) => [f, f]), ['total', 'Total'], ['collectors', 'Collectors'], [(r) => r.last || '', 'Last submission (GMT)']]),
     collectors: () => csv(PEOPLE, [['name', 'Name'], [(p) => p.districts.join('; '), 'District'], ...FORMS.map((f) => [f, f]), ['n', 'Total sent'], ['last', 'Last sent (GMT)']]),
-    checks: () => csv(ISSUES, [['label', 'Check'], ['detail', 'Detail'], [(i) => i.r.form, 'Form'], [(i) => i.r.district, 'District'], [(i) => i.r.community, 'Community'], [(i) => i.r.interviewer, 'Collector'], [(i) => i.r.submitted_at, 'Sent (GMT)'], [(i) => i.r.id, 'Kobo submission ID']]),
   };
 
   // ---------------- render ----------------
@@ -453,7 +396,6 @@
     drawPeople();
     drawHeat();
     drawFeed();
-    drawChecks();
     drawTable();
   }
 
@@ -485,7 +427,7 @@
   fD.addEventListener('change', () => { fitPending = true; render(); });
   fF.addEventListener('change', render);
   fP.addEventListener('change', render);
-  $('#clear-filters').addEventListener('click', () => { fD.value = ''; fF.value = ''; fP.value = 'all'; activeCheck = null; fitPending = true; render(); });
+  $('#clear-filters').addEventListener('click', () => { fD.value = ''; fF.value = ''; fP.value = 'all'; fitPending = true; render(); });
   $$('[data-csv]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (RAW) download(`mda-${b.dataset.csv}-${todayStr()}.csv`, CSVS[b.dataset.csv]()); }));
   let rt, lastW = innerWidth;
   addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { render(); map.invalidateSize(); }, 200); });
