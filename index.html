@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f2a44">
   <title>KoboCollect Submissions – MDA Round Two · Western Region</title>
   <meta name="description" content="Live tracking of KoboToolbox submissions for the 2026 MDA Round Two in 10 districts of the Western Region of Ghana: who is submitting, which forms, from where and when.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230f2a44'/><path d='M16 5.5c-4.4 0-8 3.4-8 7.8 0 5.6 8 13.2 8 13.2s8-7.6 8-13.2c0-4.4-3.6-7.8-8-7.8z' fill='%231baf7a'/><circle cx='16' cy='13.3' r='3.2' fill='%230f2a44'/></svg>">
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="style.css">
@@ -14,10 +14,13 @@
 <body>
   <header class="hero">
     <div class="wrap hero-inner">
-      <div class="title">
-        <p class="eyebrow">NTDP · Western Region · MDA Round Two 2026</p>
-        <h1>KoboCollect Submissions</h1>
-        <p class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span></p>
+      <div class="brand">
+        <img class="logo" src="ghs-logo.png" alt="Ghana Health Service" width="64" height="64">
+        <div class="title">
+          <p class="eyebrow">Ghana Health Service · NTDP · Western Region · MDA Round Two 2026</p>
+          <h1>KoboCollect Submissions</h1>
+          <p class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span></p>
+        </div>
       </div>
       <div class="filters" role="group" aria-label="Filters">
         <label class="field"><span>District</span><select id="f-district"><option value="">All districts</option></select></label>
