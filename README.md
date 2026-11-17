@@ -1,4 +1,4 @@
-# MDA Round Two – submission monitoring dashboard
+# KoboCollect Submissions – MDA Round Two dashboard
 
 A live website that tracks KoboToolbox submissions for the 2026 MDA Round Two in 10 districts of
 the Western Region of Ghana: **which forms are being submitted, from where, by which supervisors, and when.**
