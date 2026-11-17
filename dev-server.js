@@ -5,7 +5,7 @@ import { extname, join, normalize } from 'node:path';
 import handler from './api/data.js';
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.geojson': 'application/geo+json' };
-const root = join(process.cwd(), 'public');
+const root = process.cwd();
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MDA Round Two – Western Region Monitoring Dashboard</title>
+  <meta name="description" content="Live monitoring of the 2026 MDA Round Two in the Western Region of Ghana, from KoboToolbox data.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%232a78d6'/><path d='M9 17l5 5 9-11' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div>
+        <p class="eyebrow">NTDP · Western Region · 2026</p>
+        <h1>MDA Round Two monitoring</h1>
+      </div>
+      <div class="controls">
+        <label class="field">
+          <span>District</span>
+          <select id="district"><option value="">All districts</option></select>
+        </label>
+        <div class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading…</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="lede" id="lede">Loading the latest submissions from KoboToolbox…</p>
+    <div class="error" id="error" hidden></div>
+
+    <section class="tiles" id="kpis" aria-label="Headline figures">
+      <article class="tile"><h2>Submissions</h2><p class="big" data-kpi="submissions">—</p><p class="sub">All four forms</p></article>
+      <article class="tile"><h2>Treatment coverage</h2><p class="big" data-kpi="coverage_pct">—</p><p class="sub">Treated ÷ household members, rapid assessment</p></article>
+      <article class="tile"><h2>Adults aware of campaign</h2><p class="big" data-kpi="awareness_pct">—</p><p class="sub">Aware ÷ adults seen, rapid assessment</p></article>
+      <article class="tile"><h2>Households visited by CDD</h2><p class="big" data-kpi="hh_visited_pct">—</p><p class="sub"><span data-kpi="households">—</span> households sampled</p></article>
+      <article class="tile"><h2>SCT sites, good coverage</h2><p class="big"><span data-kpi="sct_good">—</span> <small>of <span data-kpi="sct_sites">—</span></small></p><p class="sub">16+ of 20 respondents swallowed</p></article>
+      <article class="tile"><h2>Districts reporting</h2><p class="big"><span data-kpi="monitor_districts">—</span> <small>of 14</small></p><p class="sub">District monitoring form received</p></article>
+    </section>
+
+    <section class="card" id="map-card">
+      <div class="card-head">
+        <h2>Where data was collected</h2>
+        <p class="note">Each dot is a submission's GPS point. Click one for details. Switch to satellite view or toggle forms with the layer button on the map. The district monitoring form has no GPS question, so it isn't mapped.</p>
+      </div>
+      <div id="map" role="region" aria-label="Map of submissions"></div>
+    </section>
+
+    <section class="grid2">
+      <article class="card">
+        <div class="card-head"><h2>Submissions by form</h2></div>
+        <div class="chart" id="chart-forms"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Submissions per day</h2><div class="legend" id="legend-days"></div></div>
+        <div class="chart" id="chart-days"></div>
+      </article>
+    </section>
+
+    <section class="grid2">
+      <article class="card">
+        <div class="card-head">
+          <h2>Treatment coverage by district</h2>
+          <p class="note">Rapid assessment. Dashed line: 65% minimum effective coverage.</p>
+        </div>
+        <div class="chart" id="chart-coverage"></div>
+      </article>
+      <article class="card">
+        <div class="card-head">
+          <h2>Answers to multi-choice questions</h2>
+          <label class="field inline"><span class="sr">Question</span><select id="topic"></select></label>
+        </div>
+        <div class="chart" id="chart-answers"></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>WHO supervisor's coverage tool – sites</h2>
+        <p class="note">Decision rule from the form: 10 or fewer of 20 swallowed = inadequate · 11–15 = cannot conclude · 16 or more = good coverage.</p>
+      </div>
+      <div class="tablewrap"><table id="table-sct">
+        <thead><tr><th>District</th><th>Sub-district</th><th>Community</th><th>Disease</th><th class="num">Interviewed</th><th class="num">Swallowed</th><th>Decision</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <section class="grid2">
+      <article class="card">
+        <div class="card-head"><h2>CDD assessment</h2></div>
+        <div class="minitiles">
+          <div><h3>CDDs assessed</h3><p class="big" data-kpi="cdd_n">—</p></div>
+          <div><h3>Trained before distribution</h3><p class="big" data-kpi="cdd_trained_pct">—</p></div>
+          <div><h3>Social mobilization done</h3><p class="big" data-kpi="cdd_socmob_pct">—</p></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Data collectors</h2></div>
+        <div class="tablewrap"><table id="table-enum">
+          <thead><tr><th>Name</th><th class="num">Submissions</th><th>Forms</th><th>Last submission</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>District monitoring</h2></div>
+      <div class="tablewrap"><table id="table-monitor">
+        <thead><tr><th>District</th><th>Date</th><th>Logistics adequate</th><th class="num">IVM tablets in stock</th><th class="num">Health workers trained</th><th class="num">CDDs trained</th><th>Social mobilization</th><th>Data plan</th><th>DHIMS 2 entry</th><th>Hard-to-reach areas</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <footer class="foot">
+      <p>Data: KoboToolbox (kf.kobotoolbox.org), refreshed automatically every 5 minutes. Map tiles © OpenStreetMap contributors; satellite imagery © Esri.</p>
+    </footer>
+  </main>
+
+  <div class="tip" id="tip" hidden></div>
+
+  <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
