@@ -3,27 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#173a5e">
+  <meta name="theme-color" content="#0f2a44">
   <title>MDA Round Two – Submission Monitoring · Western Region</title>
-  <meta name="description" content="Live tracking of KoboToolbox submissions for the 2026 MDA Round Two in the Western Region of Ghana: who is submitting, which forms, from where and when.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23173a5e'/><path d='M8 17l5 5 11-12' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <meta name="description" content="Live tracking of KoboToolbox submissions for the 2026 MDA Round Two in 10 districts of the Western Region of Ghana: who is submitting, which forms, from where and when.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230f2a44'/><path d='M8 17l5 5 11-12' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="top">
-    <div class="wrap top-inner">
-      <div class="brand">
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="title">
         <p class="eyebrow">NTDP · Western Region · MDA Round Two 2026</p>
         <h1>Submission monitoring</h1>
+        <p class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span></p>
       </div>
       <div class="filters" role="group" aria-label="Filters">
-        <label class="field"><span>District</span>
-          <select id="f-district"><option value="">All districts</option></select>
-        </label>
-        <label class="field"><span>Form</span>
-          <select id="f-form"><option value="">All forms</option></select>
-        </label>
+        <label class="field"><span>District</span><select id="f-district"><option value="">All districts</option></select></label>
+        <label class="field"><span>Form</span><select id="f-form"><option value="">All forms</option></select></label>
         <label class="field"><span>Period</span>
           <select id="f-period">
             <option value="all">Whole campaign</option>
@@ -32,129 +29,104 @@
             <option value="1">Today</option>
           </select>
         </label>
+        <button type="button" class="clear" id="clear-filters" hidden>Clear</button>
       </div>
     </div>
-    <div class="wrap updated"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span><button type="button" class="linkbtn" id="clear-filters" hidden>Clear filters</button></div>
   </header>
 
   <main class="wrap">
     <div class="error" id="error" hidden></div>
 
-    <!-- Headline -->
-    <section class="headline" aria-label="Summary">
-      <article class="stat" id="st-total">
+    <!-- KPI row -->
+    <section class="kpis" aria-label="Summary">
+      <article class="kpi">
         <h2>Submissions</h2>
-        <p class="num" data-s="total">—</p>
-        <div class="split" id="form-split"></div>
+        <p class="big" data-s="total">—</p>
+        <div class="formbar" id="formbar" aria-hidden="true"></div>
+        <div class="formkey" id="formkey"></div>
       </article>
-      <article class="stat" id="st-districts">
+      <article class="kpi">
         <h2>Districts submitting</h2>
-        <p class="num"><span data-s="districts">—</span><small> of <span data-s="districts_all">14</span></small></p>
-        <div class="bar" aria-hidden="true"><i data-s-bar="districts"></i></div>
-        <p class="ctx" data-s="districts_ctx">—</p>
+        <p class="big"><span data-s="districts">—</span><small> of <span data-s="districts_all">10</span></small></p>
+        <div class="dgrid" id="dgrid"></div>
+        <p class="note" data-s="districts_ctx">—</p>
       </article>
-      <article class="stat" id="st-collectors">
+      <article class="kpi">
         <h2>Data collectors</h2>
-        <p class="num" data-s="collectors">—</p>
-        <p class="ctx" data-s="collectors_ctx">—</p>
+        <p class="big" data-s="collectors">—</p>
+        <p class="pills"><span class="pill good" data-s="active_today">—</span><span class="pill bad" data-s="silent" hidden>—</span></p>
+        <p class="note" data-s="collectors_ctx">—</p>
       </article>
-      <article class="stat" id="st-today">
+      <article class="kpi">
         <h2>Submitted today</h2>
-        <p class="num" data-s="today">—</p>
-        <p class="ctx" data-s="today_ctx">—</p>
+        <p class="big" data-s="today">—</p>
+        <div class="spark" id="spark" aria-hidden="true"></div>
+        <p class="note" data-s="today_ctx">—</p>
       </article>
     </section>
 
-    <!-- District × form -->
-    <section class="panel" id="by-district">
-      <div class="panel-head">
-        <div>
-          <h2>Submissions by district and form</h2>
-          <p class="sub">Tap a district to focus the page on it. A dash means nothing received yet.</p>
-        </div>
-        <button type="button" class="btn small" data-csv="districts">Download CSV</button>
-      </div>
-      <div class="tablewrap">
-        <table class="matrix" id="matrix">
-          <thead><tr>
-            <th data-sort="district">District</th>
-            <th data-sort="CDD assessment" class="r"><i class="sw" data-form="CDD assessment"></i>CDD</th>
-            <th data-sort="WHO SCT" class="r"><i class="sw" data-form="WHO SCT"></i>WHO SCT</th>
-            <th data-sort="Rapid assessment" class="r"><i class="sw" data-form="Rapid assessment"></i>Rapid</th>
-            <th data-sort="District monitoring" class="r"><i class="sw" data-form="District monitoring"></i>District</th>
-            <th data-sort="total" class="r">Total</th>
-            <th data-sort="collectors" class="r">Collectors</th>
-            <th data-sort="last">Last submission</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Map + daily -->
-    <section class="two">
-      <article class="panel" id="map-panel">
-        <div class="panel-head">
-          <div><h2>Where forms were submitted from</h2><p class="sub">Each dot is a submission's GPS point. Tap one for who, which form and when.</p></div>
-        </div>
+    <!-- Dashboard grid -->
+    <section class="grid">
+      <article class="card c7" id="map-card">
+        <header class="card-head"><div><h2>Where forms were submitted from</h2><p class="sub">GPS point of every submission · tap a dot for details</p></div></header>
         <div id="map" role="region" aria-label="Map of submission locations"></div>
         <div class="legend" id="map-legend"></div>
       </article>
 
-      <article class="panel" id="daily-panel">
-        <div class="panel-head">
-          <div><h2>Submissions per day</h2><p class="sub">By the day each form was sent to the server.</p></div>
-        </div>
-        <div class="legend" id="daily-legend"></div>
-        <div class="chart" id="daily"></div>
+      <article class="card c5" id="district-card">
+        <header class="card-head"><div><h2>Submissions by district</h2><p class="sub">Stacked by form · tap a district to focus on it</p></div></header>
+        <div class="legend top" id="district-legend"></div>
+        <div class="chart" id="district-chart"></div>
       </article>
-    </section>
 
-    <!-- Collectors + feed -->
-    <section class="two">
-      <article class="panel" id="collectors">
-        <div class="panel-head">
-          <div><h2>Who is submitting</h2><p class="sub">Every data collector, the forms they've sent, and when they were last active.</p></div>
-          <button type="button" class="btn small" data-csv="collectors">Download CSV</button>
-        </div>
+      <article class="card c6" id="daily-card">
+        <header class="card-head"><div><h2>Submissions per day</h2><p class="sub">By the day each form reached the server</p></div></header>
+        <div class="chart" id="daily-chart"></div>
+      </article>
+
+      <article class="card c6" id="people-card">
+        <header class="card-head"><div><h2>Who is submitting</h2><p class="sub">Forms sent per data collector · last activity on the right</p></div>
+          <button type="button" class="btn" data-csv="collectors">CSV</button></header>
+        <div class="chart" id="people-chart"></div>
+      </article>
+
+      <article class="card c12" id="heat-card">
+        <header class="card-head"><div><h2>Daily activity by district</h2><p class="sub">Each square is one district on one day · darker = more forms</p></div></header>
+        <div class="chart" id="heat-chart"></div>
+      </article>
+
+      <article class="card c5" id="feed-card">
+        <header class="card-head"><div><h2>Latest submissions</h2><p class="sub">Most recent first</p></div></header>
+        <ol class="feed" id="feed"></ol>
+      </article>
+
+      <article class="card c7" id="checks-card">
+        <header class="card-head"><div><h2>Submission checks</h2><p class="sub">Worth a second look with the collector · tap a check to list them</p></div>
+          <button type="button" class="btn" data-csv="checks">CSV</button></header>
+        <div class="checks" id="check-cards"></div>
+        <ul class="issues" id="issues"></ul>
+      </article>
+
+      <details class="card c12 tablecard" id="table-card">
+        <summary><span><b>District × form table</b> · exact counts for every district</span></summary>
+        <div class="table-tools"><button type="button" class="btn" data-csv="districts">Download CSV</button></div>
         <div class="tablewrap">
-          <table class="people" id="people">
-            <thead><tr><th>Name · district</th><th>Forms</th><th class="r">Sent</th><th>Last sent</th></tr></thead>
+          <table id="matrix">
+            <thead><tr>
+              <th>District</th><th class="r">CDD</th><th class="r">WHO SCT</th><th class="r">Rapid</th><th class="r">District</th><th class="r">Total</th><th class="r">Collectors</th><th>Last submission</th>
+            </tr></thead>
             <tbody></tbody>
           </table>
         </div>
-      </article>
-
-      <article class="panel" id="feed-panel">
-        <div class="panel-head">
-          <div><h2>Latest submissions</h2><p class="sub">The 20 most recent, newest first.</p></div>
-        </div>
-        <ol class="feed" id="feed"></ol>
-      </article>
-    </section>
-
-    <!-- Checks -->
-    <section class="panel" id="checks">
-      <div class="panel-head">
-        <div><h2>Submission checks</h2><p class="sub">Submissions worth a second look with the collector. Tap a check to see the list.</p></div>
-        <button type="button" class="btn small" data-csv="checks">Download CSV</button>
-      </div>
-      <div class="checkgrid" id="check-cards"></div>
-      <div class="tablewrap">
-        <table class="issues" id="issues">
-          <thead><tr><th>Check</th><th>Form</th><th>District</th><th>Community</th><th>Collector</th><th>When</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      </details>
     </section>
 
     <footer class="foot">
-      <p>Data: KoboToolbox (kf.kobotoolbox.org), refreshed every 5 minutes; times in GMT. "Form open" is the time between opening a form on the phone and finishing it, so it includes any time the form was left open. District boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
+      <p>Covers 10 districts: Ahanta West, Ellembelle, Jomoro, Nzema East, Prestea-Huni Valley, Tarkwa Nsuaem, Wassa Amenfi Central, Wassa Amenfi East, Wassa Amenfi West and Wassa East. Data: KoboToolbox (kf.kobotoolbox.org), refreshed every 5 minutes; times in GMT. Boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
     </footer>
   </main>
 
   <div class="tip" id="tip" hidden></div>
-
   <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="app.js"></script>
