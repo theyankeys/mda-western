@@ -6,7 +6,6 @@
   const FORMS = ['CDD assessment', 'WHO SCT', 'Rapid assessment', 'District monitoring'];
   const SHORT = { 'CDD assessment': 'CDD', 'WHO SCT': 'WHO SCT', 'Rapid assessment': 'Rapid', 'District monitoring': 'District' };
   const COLOR = { 'CDD assessment': '#2a78d6', 'WHO SCT': '#eb6834', 'Rapid assessment': '#1baf7a', 'District monitoring': '#e3a008' };
-  const SILENT_DAYS = 2;
   const REFRESH_MS = 5 * 60 * 1000;
 
   const fmt = d3.format(',');
@@ -110,9 +109,7 @@
     // collectors
     set('collectors', fmt(PEOPLE.length));
     const active = PEOPLE.filter((p) => subDay({ submitted_at: p.last }) === todayStr()).length;
-    const silent = PEOPLE.filter((p) => (Date.now() - Date.parse(p.last)) / 864e5 >= SILENT_DAYS).length;
     set('active_today', `● ${active} active today`);
-    const sp = $('[data-s="silent"]'); sp.hidden = !silent; sp.textContent = `${silent} silent ${SILENT_DAYS}+ days`;
     set('collectors_ctx', PEOPLE.length ? `Most forms: ${PEOPLE[0].name} (${PEOPLE[0].n})` : 'No submissions yet');
     // today + sparkline (last 14 days)
     const base = inDistrict(inForm(DATA));
@@ -199,7 +196,7 @@
       empty: q ? `No supervisor matching “${$('#people-search').value.trim()}” for this selection.` : 'No submissions for this selection yet.',
       max: d3.max(PEOPLE, (p) => p.n),
       right: (r) => fmt(r.n),
-      rightMuted: (r) => { const d = (Date.now() - Date.parse(r.last)) / 864e5; return d >= SILENT_DAYS ? `· silent ${Math.floor(d)}d` : `· ${ago(r.last)}`; },
+      rightMuted: (r) => `· ${ago(r.last)}`,
       tip: (r) => [`Rank ${r.rank} of ${PEOPLE.length}`, r.districts.join(', ') || 'No district', plural(r.n, 'form'), ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), `Last sent: ${when(r.last)}`],
     });
   }
@@ -349,18 +346,6 @@
     });
   }
 
-  // ---------------- feed ----------------
-  function drawFeed() {
-    const ol = $('#feed'); ol.replaceChildren();
-    const S = [...scoped()].sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || '')).slice(0, 30);
-    if (!S.length) { ol.appendChild(el('li', 'empty', 'No submissions for this selection yet.')); return; }
-    for (const r of S) {
-      const li = el('li'); li.title = when(r.submitted_at);
-      li.append(swatch(r.form), el('span', 'what', `${r.interviewer || 'Unknown'} · ${SHORT[r.form]}`), el('span', 'when', ago(r.submitted_at)), el('span', 'where', [r.community, r.district].filter(Boolean).join(', ') || 'No location given'));
-      ol.appendChild(li);
-    }
-  }
-
   // ---------------- table ----------------
   function drawTable() {
     const tb = $('#matrix tbody'); tb.replaceChildren();
@@ -403,7 +388,6 @@
     drawDaily();
     drawPeople();
     drawHeat();
-    drawFeed();
     drawTable();
     document.dispatchEvent(new CustomEvent('dash:render'));
   }
