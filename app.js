@@ -405,6 +405,7 @@
     drawHeat();
     drawFeed();
     drawTable();
+    document.dispatchEvent(new CustomEvent('dash:render'));
   }
 
   async function load() {

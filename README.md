@@ -25,6 +25,13 @@ Forms tracked:
 - Exact-count table (folded) and CSV downloads
 - Filters: district, form, period. Works on phones, tablets and laptops.
 
+## Drug administration section
+
+Figures for the Oncho/LF MDA (Round 2, latest year) come from the NTDP MDA app at ntdpgh.org.
+`api/mda.js` signs in on the server with the `NTDP_USERNAME` and `NTDP_PASSWORD` environment variables,
+reads the Western Region dashboard and each district's dashboard, and returns only aggregate counts.
+Optional settings: `NTDP_ROUND` (default 2), `NTDP_YEAR` (default: latest year in the app), `NTDP_REGION_ID` (default 10, Western).
+
 ## How it works
 
 - `api/data.js` is a Vercel serverless function. It calls the KoboToolbox API with the token stored in the
@@ -39,12 +46,12 @@ Forms tracked:
 ## Deploy
 
 Pushing to `main` deploys to https://mda-western.vercel.app. Other branches get private preview links.
-The `KOBO_TOKEN` variable is set under the Vercel project's **Settings → Environment Variables**.
+The `KOBO_TOKEN`, `NTDP_USERNAME` and `NTDP_PASSWORD` variables are set under the Vercel project's **Settings → Environment Variables**.
 
 ## Run locally
 
 ```
-KOBO_TOKEN=your_key node dev-server.js
+KOBO_TOKEN=your_key NTDP_USERNAME=user NTDP_PASSWORD=pass node dev-server.js
 ```
 
 Then open http://localhost:3000.

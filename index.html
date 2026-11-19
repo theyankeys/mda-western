@@ -19,7 +19,7 @@
         <div class="title">
           <p class="eyebrow">Ghana Health Service · NTDP · Western Region · MDA Round Two 2026</p>
           <h1>KoboCollect Submissions</h1>
-          <p class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span></p>
+          <p class="status"><span class="dot" id="live-dot"></span><span id="updated">Loading submissions from KoboToolbox…</span><a class="jump" href="#mda">Drug administration ↓</a></p>
         </div>
       </div>
       <div class="filters" role="group" aria-label="Filters">
@@ -124,8 +124,72 @@
       </details>
     </section>
 
+    <!-- Drug administration (NTDP MDA app) -->
+    <section class="band" id="mda" aria-labelledby="mda-title">
+      <header class="band-head">
+        <div>
+          <p class="eyebrow dark">From the NTDP Oncho/LF MDA app · ntdpgh.org</p>
+          <h2 id="mda-title">Drug administration</h2>
+          <p class="sub" id="mda-sub">Loading figures from the MDA app…</p>
+        </div>
+        <p class="band-note" id="mda-note">Cumulative to date. The form and period filters don't apply to this section; the district filter does.</p>
+      </header>
+      <div class="error" id="mda-error" hidden></div>
+      <div class="kpis" id="mda-kpis">
+        <article class="kpi">
+          <h2>People treated</h2>
+          <p class="big" data-m="treated">—</p>
+          <div class="meter" aria-hidden="true"><i data-m-bar="treated"></i></div>
+          <p class="note" data-m="treated_ctx">—</p>
+        </article>
+        <article class="kpi">
+          <h2>People registered</h2>
+          <p class="big" data-m="registered">—</p>
+          <p class="note" data-m="registered_ctx">—</p>
+        </article>
+        <article class="kpi">
+          <h2>Not treated</h2>
+          <p class="big" data-m="not_treated">—</p>
+          <p class="note" data-m="not_treated_ctx">—</p>
+        </article>
+        <article class="kpi">
+          <h2>Ivermectin tablets used</h2>
+          <p class="big" data-m="ivermectin">—</p>
+          <p class="note" data-m="ivermectin_ctx">—</p>
+        </article>
+      </div>
+      <div class="grid">
+        <article class="card c7">
+          <header class="card-head"><div><h2>Treated vs registered by district</h2><p class="sub">Bar = people registered · filled part = treated · tap a district to focus on it</p></div>
+            <button type="button" class="btn" id="mda-csv">CSV</button></header>
+          <div class="chart" id="mda-districts"></div>
+        </article>
+        <article class="card c5">
+          <header class="card-head"><div><h2>Treatment by sex</h2><p class="sub">Treated out of registered</p></div></header>
+          <div class="chart" id="mda-sex"></div>
+        </article>
+        <article class="card c6">
+          <header class="card-head"><div><h2>Height groups</h2><p class="sub">People registered by dose-pole height (cm)</p></div></header>
+          <div class="chart" id="mda-height"></div>
+        </article>
+        <article class="card c6">
+          <header class="card-head"><div><h2>Clinical conditions recorded</h2><p class="sub" id="mda-clinical-sub">People registered with a recorded condition</p></div></header>
+          <div class="chart" id="mda-clinical"></div>
+        </article>
+        <article class="card c12">
+          <header class="card-head"><div><h2>Drugs used and wasted by district</h2><p class="sub">Tablets</p></div></header>
+          <div class="tablewrap flat">
+            <table id="mda-drugs">
+              <thead><tr><th>District</th><th class="r">Households</th><th class="r">Ivermectin used</th><th class="r">Ivermectin wasted</th><th class="r">Moxidectin used</th><th class="r">Moxidectin wasted</th><th class="r">Albendazole used</th><th class="r">Albendazole wasted</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <footer class="foot">
-      <p>Covers 10 districts: Ahanta West, Ellembelle, Jomoro, Nzema East, Prestea-Huni Valley, Tarkwa Nsuaem, Wassa Amenfi Central, Wassa Amenfi East, Wassa Amenfi West and Wassa East. Data: KoboToolbox (kf.kobotoolbox.org), refreshed every 5 minutes; times in GMT. Boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
+      <p>Covers 10 districts: Ahanta West, Ellembelle, Jomoro, Nzema East, Prestea-Huni Valley, Tarkwa Nsuaem, Wassa Amenfi Central, Wassa Amenfi East, Wassa Amenfi West and Wassa East. Data: KoboToolbox (kf.kobotoolbox.org) and the NTDP Oncho/LF MDA app (ntdpgh.org), both refreshed every 5 minutes; times in GMT. Boundaries: Ghana COD-AB 2021. Map © OpenStreetMap contributors; imagery © Esri.</p>
     </footer>
   </main>
 
@@ -133,5 +197,6 @@
   <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="app.js"></script>
+  <script src="mda.js"></script>
 </body>
 </html>
