@@ -144,7 +144,7 @@
     const left = Math.min(d3.max(rows, (r) => tw(r.label, 'dname')) + 14, W * 0.42);
     const right = Math.min(d3.max(rows, (r) => tw(opts.right(r), 'val') + (opts.rightMuted ? tw(' ' + opts.rightMuted(r), 'muted') : 0)) + 12, W * 0.4);
     probe.remove();
-    const max = d3.max(rows, (r) => r.total) || 1;
+    const max = opts.max || d3.max(rows, (r) => r.total) || 1;
     const x = d3.scaleLinear().domain([0, max]).range([0, W - left - right]);
     const g = svg.selectAll('g.row').data(rows).join('g').attr('class', (r) => 'row' + (opts.selected && opts.selected(r) ? ' sel' : '')).attr('transform', (r, i) => `translate(0,${i * rowH})`);
     g.append('rect').attr('class', 'bg').attr('width', W).attr('height', rowH).attr('rx', 6).attr('fill', 'transparent');
@@ -186,13 +186,21 @@
     });
   }
 
+  const TOP_PEOPLE = 10;
   function drawPeople() {
-    const rows = PEOPLE.map((p) => ({ ...p, label: p.name, total: p.n }));
+    const q = ($('#people-search').value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const ranked = PEOPLE.map((p, i) => ({ ...p, rank: i + 1, label: `${i + 1}. ${p.name}`, total: p.n }));
+    const rows = q ? ranked.filter((p) => p.name.toLowerCase().includes(q)) : ranked.slice(0, TOP_PEOPLE);
+    const note = $('#people-note');
+    if (q) note.textContent = rows.length ? `${plural(rows.length, 'supervisor')} matching “${$('#people-search').value.trim()}”` : '';
+    else note.textContent = PEOPLE.length > TOP_PEOPLE ? `Showing the top ${TOP_PEOPLE} of ${fmt(PEOPLE.length)} supervisors · search to find anyone else` : PEOPLE.length ? `All ${plural(PEOPLE.length, 'supervisor')} shown` : '';
     stackedBars($('#people-chart'), rows, {
-      aria: 'Forms sent per supervisor', rowH: 30, empty: 'No submissions for this selection yet.',
+      aria: 'Forms sent per supervisor', rowH: 30,
+      empty: q ? `No supervisor matching “${$('#people-search').value.trim()}” for this selection.` : 'No submissions for this selection yet.',
+      max: d3.max(PEOPLE, (p) => p.n),
       right: (r) => fmt(r.n),
       rightMuted: (r) => { const d = (Date.now() - Date.parse(r.last)) / 864e5; return d >= SILENT_DAYS ? `· silent ${Math.floor(d)}d` : `· ${ago(r.last)}`; },
-      tip: (r) => [r.districts.join(', ') || 'No district', plural(r.n, 'form'), ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), `Last sent: ${when(r.last)}`],
+      tip: (r) => [`Rank ${r.rank} of ${PEOPLE.length}`, r.districts.join(', ') || 'No district', plural(r.n, 'form'), ...formsShown().filter((f) => r[f]).map((f) => `${SHORT[f]}: ${r[f]}`), `Last sent: ${when(r.last)}`],
     });
   }
 
@@ -427,6 +435,7 @@
   fD.addEventListener('change', () => { fitPending = true; render(); });
   fF.addEventListener('change', render);
   fP.addEventListener('change', render);
+  let st; $('#people-search').addEventListener('input', () => { clearTimeout(st); st = setTimeout(() => { if (RAW && NAMES.length) drawPeople(); }, 120); });
   $('#clear-filters').addEventListener('click', () => { fD.value = ''; fF.value = ''; fP.value = 'all'; fitPending = true; render(); });
   $$('[data-csv]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (RAW) download(`mda-${b.dataset.csv === 'collectors' ? 'supervisors' : b.dataset.csv}-${todayStr()}.csv`, CSVS[b.dataset.csv]()); }));
   let rt, lastW = innerWidth;

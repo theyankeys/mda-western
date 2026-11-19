@@ -85,6 +85,13 @@ main { margin-top: -48px; padding-bottom: 40px; display: flex; flex-direction: c
 .btn { border: 1px solid var(--line-2); background: #fff; color: var(--text-2); border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; min-height: 30px; white-space: nowrap; }
 .btn:hover { background: var(--page); color: var(--text); }
 
+/* ---------- supervisor search ---------- */
+.search { position: relative; margin-bottom: 6px; }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.search input { width: 100%; font: inherit; font-size: 14px; min-height: 40px; padding: 8px 12px 8px 34px; border: 1px solid var(--line-2); border-radius: 10px; background: #f8f9fa; color: var(--text); outline: none; }
+.search input:focus { background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(42,120,214,.15); }
+.people-note { font-size: 12px; color: var(--text-3); margin: 0 0 6px; min-height: 1em; }
+
 /* ---------- map ---------- */
 #map { flex: 1; min-height: 430px; border-radius: 10px; background: #e9eef2; }
 #map .leaflet-tile-pane { filter: saturate(.75) brightness(1.03); }

@@ -89,8 +89,13 @@
       </article>
 
       <article class="card c6" id="people-card">
-        <header class="card-head"><div><h2>Who is submitting</h2><p class="sub">Forms sent per supervisor · last activity on the right</p></div>
+        <header class="card-head"><div><h2>Who is submitting</h2><p class="sub">Top 10 supervisors by forms sent · last activity on the right</p></div>
           <button type="button" class="btn" data-csv="collectors">CSV</button></header>
+        <div class="search">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="search" id="people-search" placeholder="Search supervisor by name" aria-label="Search supervisor by name" autocomplete="off">
+        </div>
+        <p class="people-note" id="people-note"></p>
         <div class="chart" id="people-chart"></div>
       </article>
 
